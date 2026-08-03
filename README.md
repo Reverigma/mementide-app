@@ -1,0 +1,132 @@
+# 时光记忆 · TimeMemo
+
+> 极简的纪念日 + 习惯打卡 Android App。数据全部存在手机本地，不联网、无权限、无广告。
+
+一个单文件 HTML 应用 + WebView 原生壳，编译产物只有 **74 KB**。
+
+---
+
+## 功能
+
+**习惯打卡**
+
+- 每日打卡，自动统计连续天数与累计天数
+- 最近 7 天热力格，一眼看出断签
+- 支持设置未来开始日期，未开始的习惯不可打卡
+- 误点可撤销（再点一次取消当天打卡）
+
+**纪念日**
+
+- 倒数 / 正数自动切换（未来显示「还有 N 天」，过去显示「已经 N 天」）
+- 支持自定义 Emoji 图标
+
+**其它**
+
+- 明暗主题切换，与系统状态栏联动
+- 今日概览：完成进度、最长连续、最近纪念日
+- 数据存于 `localStorage`，卸载 App 才会清除
+
+---
+
+## 下载安装
+
+直接下载仓库根目录的 [`时光记忆_v1.2.apk`](时光记忆_v1.2.apk)，传到手机后允许「安装未知来源应用」即可。
+
+- 最低支持 Android 5.0（API 21）
+- 无需任何系统权限，`AndroidManifest.xml` 中未声明网络权限
+- 后续版本沿用同一签名，可直接覆盖安装
+
+---
+
+## 技术架构
+
+```
+┌─────────────────────────────────────┐
+│  MainActivity (Java)                │
+│  ├─ WebView                         │
+│  │   └─ file:///android_asset/      │
+│  │        index.html                │
+│  ├─ JS Bridge: 主题色同步状态栏      │
+│  └─ 全局 try-catch 崩溃兜底          │
+└─────────────────────────────────────┘
+```
+
+- **前端**：单个 `index.html`，原生 JS，零依赖、零构建步骤
+- **原生壳**：一个 `MainActivity`，约 200 行 Java
+- **存储**：`localStorage`，无数据库、无网络请求
+- **打包**：手写 `aapt2 → javac → d8 → zipalign → apksigner` 流水线，**不依赖 Gradle**
+
+前端同时是一个合规 PWA（含 `manifest.webmanifest` 与 Service Worker），可直接在浏览器打开或添加到主屏使用。
+
+---
+
+## 项目结构
+
+```
+.
+├── www/                          # 前端（同时是 APK 的 assets 目录）
+│   ├── index.html                #   全部 UI 与业务逻辑
+│   ├── manifest.webmanifest      #   PWA 清单
+│   ├── sw.js                     #   Service Worker 离线缓存
+│   └── icon-{192,512}.png        #   PWA 图标
+├── android/
+│   ├── AndroidManifest.xml
+│   ├── java/com/timememo/app/
+│   │   └── MainActivity.java     #   WebView 容器 + JS Bridge
+│   └── res/                      #   图标、主题、字符串
+├── build/
+│   ├── build_apk.sh              # 一键构建脚本
+│   └── make_icons.py             # 纯 Python 生成图标（无第三方依赖）
+├── index.original.backup.html    # 改造前的原始单页版本，留档
+└── 时光记忆_v1.2.apk              # 已签名安装包
+```
+
+---
+
+## 自行构建
+
+**环境要求**
+
+- JDK 17
+- Android SDK：`build-tools;34.0.0` + `platforms;android-34`
+- Windows + Git Bash（脚本目前针对该环境编写）
+
+**步骤**
+
+```bash
+# 按自己的环境设置路径
+export JDK_WIN='C:\path\to\jdk-17'
+export ANDROID_SDK_WIN='C:\path\to\android-sdk'
+
+# 构建：参数为 versionName 和 versionCode
+bash build/build_apk.sh 1.2 3
+```
+
+产物输出到项目根目录 `时光记忆_v<版本号>.apk`。
+
+**关于签名**：`.keystore` 文件不入库（见 `.gitignore`）。首次构建会自动生成一个新密钥，因此**你构建出的 APK 无法覆盖安装本仓库提供的 APK**，需先卸载。若想保持一致，请妥善保管首次生成的 keystore。
+
+**重新生成图标**：
+
+```bash
+python build/make_icons.py .
+```
+
+---
+
+## 开发笔记
+
+在 Windows + Git Bash 下手写 Android 打包流水线踩到的坑，都记在 `build/build_apk.sh` 顶部注释里，简述：
+
+| 问题 | 原因 | 解决 |
+|---|---|---|
+| `aapt2` 报 `failed to open directory` | MSYS2 自动重写路径参数 | `export MSYS_NO_PATHCONV=1`，且一律传反斜杠 Windows 绝对路径 |
+| 中文目录构建失败 | `aapt2` 不支持非 ASCII 源路径 | 先同步到 `C:\tm_build` 再构建 |
+| **开屏闪退** | `d8` 只传了单个 `.class`，内部类 `MainActivity$Bridge` 未进 dex，运行时 `NoClassDefFoundError` | 先打成 `classes.jar` 整体喂给 `d8`；构建脚本增加「dex 类数 vs 编译类数」自检 |
+| 部分国产 ROM 崩溃 | `WebSettings.setForceDark` 抛异常 | 单独 try-catch 包裹 |
+
+---
+
+## License
+
+[MIT](LICENSE)

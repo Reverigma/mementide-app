@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>时光记忆 · 纪念日 & 坚持打卡</title>
+<style>
+  :root {
+    --bg: #0f1220;
+    --bg2: #171b2e;
+    --card: rgba(255,255,255,.06);
+    --card-border: rgba(255,255,255,.12);
+    --text: #e8ecf5;
+    --text-dim: #9aa3b8;
+    --accent: #6c8cff;
+    --accent2: #ff7eb6;
+    --green: #4ade80;
+    --orange: #fbbf24;
+    --red: #f87171;
+    --radius: 16px;
+    --shadow: 0 8px 30px rgba(0,0,0,.35);
+  }
+  [data-theme="light"] {
+    --bg: #eef1f8;
+    --bg2: #ffffff;
+    --card: rgba(255,255,255,.85);
+    --card-border: rgba(0,0,0,.08);
+    --text: #1a1f33;
+    --text-dim: #5a6478;
+    --shadow: 0 8px 30px rgba(0,0,0,.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: var(--text);
+    background: linear-gradient(135deg, var(--bg), var(--bg2));
+    min-height: 100vh;
+    padding: 24px 16px 60px;
+    transition: background .4s, color .4s;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 28px; flex-wrap: wrap; gap: 12px;
+  }
+  h1 { font-size: 26px; font-weight: 700; letter-spacing: .5px; }
+  h1 .sub { display:block; font-size: 13px; font-weight: 400; color: var(--text-dim); margin-top: 4px; }
+  .theme-btn {
+    background: var(--card); border: 1px solid var(--card-border);
+    color: var(--text); padding: 8px 14px; border-radius: 999px;
+    cursor: pointer; font-size: 14px; transition: .2s;
+  }
+  .theme-btn:hover { border-color: var(--accent); }
+  .section-title {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 18px; font-weight: 600; margin: 30px 0 16px;
+  }
+  .section-title .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot.a { background: var(--accent2); }
+  .dot.b { background: var(--green); }
+
+  .add-bar {
+    display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px;
+  }
+  .add-bar input, .add-bar select {
+    background: var(--card); border: 1px solid var(--card-border);
+    color: var(--text); padding: 11px 14px; border-radius: 12px;
+    font-size: 14px; outline: none; transition: .2s;
+  }
+  .add-bar input:focus, .add-bar select:focus { border-color: var(--accent); }
+  .add-bar input::placeholder { color: var(--text-dim); }
+  .add-bar input[type="date"] { color-scheme: dark; }
+  [data-theme="light"] .add-bar input[type="date"] { color-scheme: light; }
+  .add-bar .grow { flex: 1; min-width: 140px; }
+  .btn {
+    background: linear-gradient(135deg, var(--accent), #8a6cff);
+    color: #fff; border: none; padding: 11px 20px; border-radius: 12px;
+    font-size: 14px; font-weight: 600; cursor: pointer; transition: .2s;
+    white-space: nowrap;
+  }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(108,140,255,.4); }
+  .btn.green { background: linear-gradient(135deg, var(--green), #34d399); }
+  .btn.small { padding: 7px 14px; font-size: 13px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  .card {
+    background: var(--card); border: 1px solid var(--card-border);
+    border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow);
+    backdrop-filter: blur(8px); position: relative; overflow: hidden;
+    transition: transform .2s, border-color .2s;
+  }
+  .card:hover { transform: translateY(-3px); border-color: var(--accent); }
+  .card .emoji { font-size: 28px; margin-bottom: 8px; }
+  .card .name { font-size: 16px; font-weight: 600; margin-bottom: 4px; word-break: break-word; }
+  .card .date { font-size: 12px; color: var(--text-dim); margin-bottom: 12px; }
+  .card .count { font-size: 30px; font-weight: 700; line-height: 1.1; }
+  .card .count small { font-size: 14px; font-weight: 400; color: var(--text-dim); }
+  .card .tag { font-size: 12px; padding: 3px 10px; border-radius: 999px; display: inline-block; margin-top: 8px; }
+  .tag.up { background: rgba(251,191,36,.15); color: var(--orange); }
+  .tag.down { background: rgba(74,222,128,.15); color: var(--green); }
+  .tag.today { background: rgba(255,126,182,.18); color: var(--accent2); }
+  .card .del {
+    position: absolute; top: 12px; right: 12px; background: transparent;
+    border: none; color: var(--text-dim); cursor: pointer; font-size: 18px;
+    line-height: 1; transition: .2s;
+  }
+  .card .del:hover { color: var(--red); }
+  .card .checkin {
+    position: absolute; bottom: 12px; right: 12px;
+  }
+  .card.checked .checkin { background: var(--green); }
+
+  .empty { color: var(--text-dim); font-size: 14px; padding: 20px; text-align: center; border: 1px dashed var(--card-border); border-radius: var(--radius); }
+  .habits-tip { font-size: 13px; color: var(--text-dim); margin-bottom: 12px; }
+  footer { text-align: center; color: var(--text-dim); font-size: 12px; margin-top: 40px; }
+  .stat { font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+  .stat b { color: var(--text); }
+</style>
+</head>
+<body data-theme="dark">
+<div class="wrap">
+  <header>
+    <h1>时光记忆
+      <span class="sub">纪念日倒数 · 坚持打卡 · 数据本地保存</span>
+    </h1>
+    <button class="theme-btn" id="themeBtn">🌙 暗色</button>
+  </header>
+
+  <!-- 纪念日 -->
+  <div class="section-title"><span class="dot a"></span>纪念日 · 倒数 / 已过</div>
+  <div class="add-bar">
+    <input class="grow" type="text" id="anniName" placeholder="名称，如：生日 / 考研日 / 恋爱纪念日">
+    <input type="date" id="anniDate">
+    <input type="text" id="anniEmoji" placeholder="图标" value="🎉" style="width:70px;">
+    <button class="btn" id="addAnni">+ 添加</button>
+  </div>
+  <div class="grid" id="anniGrid"></div>
+
+  <!-- 坚持打卡 -->
+  <div class="section-title"><span class="dot b"></span>坚持打卡 · 习惯养成</div>
+  <div class="habits-tip">添加习惯后，每天点「打卡」记录；系统统计连续天数与累计天数。断签后连续天数重置，累计天数保留。</div>
+  <div class="add-bar">
+    <input class="grow" type="text" id="habitName" placeholder="习惯，如：背单词 / 跑步 / 早起">
+    <input type="date" id="habitStart" title="开始日期（默认今天）">
+    <input type="text" id="habitEmoji" placeholder="图标" value="✅" style="width:70px;">
+    <button class="btn green" id="addHabit">+ 添加习惯</button>
+  </div>
+  <div class="grid" id="habitGrid"></div>
+
+  <footer>数据保存在浏览器本地（localStorage），不会上传。清空浏览器缓存会丢失数据。</footer>
+</div>
+
+<script>
+const LS_ANNI = 'tm_anniversaries';
+const LS_HABIT = 'tm_habits';
+const LS_THEME = 'tm_theme';
+
+const $ = id => document.getElementById(id);
+const todayStr = () => new Date().toISOString().slice(0,10);
+const fmtDate = s => s.replace(/-/g,'/');
+
+// ---------- 主题 ----------
+const themeBtn = $('themeBtn');
+function applyTheme(t){
+  document.body.setAttribute('data-theme', t);
+  themeBtn.textContent = t === 'dark' ? '🌙 暗色' : '☀️ 亮色';
+}
+applyTheme(localStorage.getItem(LS_THEME) || 'dark');
+themeBtn.onclick = () => {
+  const next = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  localStorage.setItem(LS_THEME, next);
+  applyTheme(next);
+};
+
+// ---------- 数据存取 ----------
+const load = key => { try { return JSON.parse(localStorage.getItem(key)) || []; } catch(e){ return []; } };
+const save = (key, val) => localStorage.setItem(key, JSON.stringify(val));
+let anniversaries = load(LS_ANNI);
+let habits = load(LS_HABIT);
+
+// ---------- 纪念日 ----------
+function renderAnni(){
+  const grid = $('anniGrid');
+  if(!anniversaries.length){ grid.innerHTML = '<div class="empty">还没有纪念日，添加一个开始记录吧 ✨</div>'; return; }
+  const today = todayStr();
+  const list = anniversaries.map(a => {
+    const d = Math.round((new Date(a.date) - new Date(today)) / 86400000);
+    return { ...a, d };
+  }).sort((x,y)=>x.d - y.d);
+  grid.innerHTML = list.map(a => {
+    let tag, count;
+    if(a.d > 0){ tag = `<span class="tag up">还有 ${a.d} 天</span>`; count = `<span class="count">${a.d}<small> 天后</small></span>`; }
+    else if(a.d === 0){ tag = `<span class="tag today">就是今天 🎊</span>`; count = `<span class="count">0<small> 天</small></span>`; }
+    else { tag = `<span class="tag down">已过 ${Math.abs(a.d)} 天</span>`; count = `<span class="count">${Math.abs(a.d)}<small> 天前</small></span>`; }
+    return `<div class="card">
+      <button class="del" data-id="${a.id}" data-type="anni">×</button>
+      <div class="emoji">${a.emoji||'🎉'}</div>
+      <div class="name">${escapeHtml(a.name)}</div>
+      <div class="date">${fmtDate(a.date)}</div>
+      ${count}
+      ${tag}
+    </div>`;
+  }).join('');
+  grid.querySelectorAll('.del').forEach(b => b.onclick = () => {
+    const id = b.dataset.id;
+    anniversaries = anniversaries.filter(x => x.id !== id);
+    save(LS_ANNI, anniversaries); renderAnni();
+  });
+}
+
+$('addAnni').onclick = () => {
+  const name = $('anniName').value.trim();
+  const date = $('anniDate').value;
+  if(!name || !date){ alert('请填写名称和日期'); return; }
+  anniversaries.push({ id: Date.now()+'' , name, date, emoji: $('anniEmoji').value.trim() || '🎉' });
+  save(LS_ANNI, anniversaries);
+  $('anniName').value=''; $('anniDate').value='';
+  renderAnni();
+};
+
+// ---------- 习惯打卡 ----------
+function streak(records){
+  // records: 升序日期数组；返回当前连续天数
+  if(!records.length) return 0;
+  const set = new Set(records);
+  let count = 0;
+  let d = new Date(todayStr());
+  // 若今天没打卡，从昨天起算（避免今天还没打卡就断签的误判）
+  if(!set.has(d.toISOString().slice(0,10))) d.setDate(d.getDate()-1);
+  while(set.has(d.toISOString().slice(0,10))){
+    count++;
+    d.setDate(d.getDate()-1);
+  }
+  return count;
+}
+
+function renderHabits(){
+  const grid = $('habitGrid');
+  if(!habits.length){ grid.innerHTML = '<div class="empty">还没有习惯，添加一个开始坚持吧 💪</div>'; return; }
+  const today = todayStr();
+  grid.innerHTML = habits.map(h => {
+    const checkedToday = (h.records||[]).includes(today);
+    const total = (h.records||[]).length;
+    const st = streak(h.records||[]);
+    return `<div class="card ${checkedToday?'checked':''}">
+      <button class="del" data-id="${h.id}" data-type="habit">×</button>
+      <div class="emoji">${h.emoji||'✅'}</div>
+      <div class="name">${escapeHtml(h.name)}</div>
+      <div class="date">始于 ${fmtDate(h.start)}</div>
+      <div class="count">${st}<small> 天连续</small></div>
+      <div class="stat">累计打卡 <b>${total}</b> 天</div>
+      <button class="btn small checkin" data-id="${h.id}">${checkedToday?'已打卡 ✓':'今日打卡'}</button>
+    </div>`;
+  }).join('');
+  grid.querySelectorAll('.del').forEach(b => b.onclick = () => {
+    const id = b.dataset.id;
+    habits = habits.filter(x => x.id !== id);
+    save(LS_HABIT, habits); renderHabits();
+  });
+  grid.querySelectorAll('.checkin').forEach(b => b.onclick = () => {
+    const id = b.dataset.id;
+    const h = habits.find(x => x.id === id);
+    const t = todayStr();
+    if(!h.records) h.records = [];
+    if(h.records.includes(t)){ alert('今天已经打卡啦，明天再来～'); return; }
+    h.records.push(t);
+    h.records.sort();
+    save(LS_HABIT, habits); renderHabits();
+  });
+}
+
+$('addHabit').onclick = () => {
+  const name = $('habitName').value.trim();
+  if(!name){ alert('请填写习惯名称'); return; }
+  const start = $('habitStart').value || todayStr();
+  habits.push({ id: Date.now()+'', name, start, emoji: $('habitEmoji').value.trim() || '✅', records: [] });
+  save(LS_HABIT, habits);
+  $('habitName').value=''; $('habitStart').value='';
+  renderHabits();
+};
+
+function escapeHtml(s){ return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// 初始化
+renderAnni();
+renderHabits();
+// 跨天自动刷新
+setInterval(() => { renderAnni(); renderHabits(); }, 60*1000);
+</script>
+</body>
+</html>

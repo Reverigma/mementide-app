@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0f1220">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>时光记忆</title>
+<style>
+  :root {
+    --bg: #0f1220;
+    --bg2: #171b2e;
+    --card: rgba(255,255,255,.06);
+    --card-border: rgba(255,255,255,.12);
+    --text: #e8ecf5;
+    --text-dim: #9aa3b8;
+    --accent: #6c8cff;
+    --accent2: #ff7eb6;
+    --green: #4ade80;
+    --orange: #fbbf24;
+    --red: #f87171;
+    --radius: 18px;
+    --shadow: 0 8px 30px rgba(0,0,0,.35);
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+  }
+  [data-theme="light"] {
+    --bg: #eef1f8;
+    --bg2: #ffffff;
+    --card: rgba(255,255,255,.9);
+    --card-border: rgba(0,0,0,.08);
+    --text: #1a1f33;
+    --text-dim: #5a6478;
+    --shadow: 0 6px 22px rgba(0,0,0,.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+    color: var(--text);
+    background: linear-gradient(160deg, var(--bg), var(--bg2));
+    background-attachment: fixed;
+    min-height: 100vh;
+    transition: background .35s, color .35s;
+    -webkit-user-select: none; user-select: none;
+    overflow-x: hidden;
+  }
+  input, textarea { -webkit-user-select: text; user-select: text; }
+
+  .app { max-width: 720px; margin: 0 auto; padding: calc(var(--sat) + 18px) 14px calc(var(--sab) + 40px); }
+
+  /* ---------- 顶栏 ---------- */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; margin-bottom: 22px;
+  }
+  .brand h1 { font-size: 22px; font-weight: 700; letter-spacing: .5px; line-height: 1.2; }
+  .brand .sub { display: block; font-size: 12px; font-weight: 400; color: var(--text-dim); margin-top: 5px; }
+  .icon-btn {
+    flex: none; width: 42px; height: 42px; border-radius: 50%;
+    background: var(--card); border: 1px solid var(--card-border);
+    color: var(--text); font-size: 18px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: .2s;
+  }
+  .icon-btn:active { transform: scale(.92); }
+
+  /* ---------- 今日概览 ---------- */
+  .overview {
+    display: flex; gap: 10px; margin-bottom: 24px;
+  }
+  .ov-item {
+    flex: 1; background: var(--card); border: 1px solid var(--card-border);
+    border-radius: 14px; padding: 12px 10px; text-align: center;
+  }
+  .ov-item .n { font-size: 20px; font-weight: 700; line-height: 1.2; }
+  .ov-item .l { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+  /* ---------- 分区 ---------- */
+  section { margin-bottom: 30px; }
+  .sec-head {
+    display: flex; align-items: center; gap: 9px; margin-bottom: 12px;
+  }
+  .sec-head .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .dot.b { background: var(--green); }
+  .dot.a { background: var(--accent2); }
+  .sec-head .t { font-size: 16px; font-weight: 600; }
+  .sec-head .spacer { flex: 1; }
+  .add-toggle {
+    background: var(--card); border: 1px solid var(--card-border);
+    color: var(--text); border-radius: 999px; padding: 6px 14px;
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: .2s;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .add-toggle:active { transform: scale(.95); }
+  .add-toggle.open { background: var(--accent); border-color: transparent; color: #fff; }
+  .tip { font-size: 12px; color: var(--text-dim); line-height: 1.6; margin-bottom: 12px; }
+
+  /* ---------- 折叠表单 ---------- */
+  .form {
+    max-height: 0; overflow: hidden; opacity: 0;
+    transition: max-height .3s ease, opacity .25s, margin .3s;
+  }
+  .form.open { max-height: 420px; opacity: 1; margin-bottom: 16px; }
+  .form-inner {
+    background: var(--card); border: 1px solid var(--card-border);
+    border-radius: var(--radius); padding: 14px; display: flex;
+    flex-direction: column; gap: 11px;
+  }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 12px; color: var(--text-dim); padding-left: 2px; }
+  .form input[type="text"], .form input[type="date"] {
+    width: 100%; background: rgba(127,127,127,.12);
+    border: 1px solid var(--card-border); color: var(--text);
+    padding: 12px 13px; border-radius: 12px; font-size: 15px;
+    outline: none; transition: .2s; font-family: inherit;
+  }
+  .form input:focus { border-color: var(--accent); background: rgba(108,140,255,.1); }
+  .form input::placeholder { color: var(--text-dim); }
+  input[type="date"] { color-scheme: dark; }
+  [data-theme="light"] input[type="date"] { color-scheme: light; }
+
+  .emoji-row { display: flex; flex-wrap: wrap; gap: 7px; }
+  .emoji-pick {
+    width: 40px; height: 40px; border-radius: 11px; font-size: 20px;
+    background: rgba(127,127,127,.12); border: 1px solid transparent;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: .15s; line-height: 1;
+  }
+  .emoji-pick.sel { border-color: var(--accent); background: rgba(108,140,255,.18); transform: scale(1.05); }
+  .emoji-pick:active { transform: scale(.9); }
+
+  .btn {
+    background: linear-gradient(135deg, var(--accent), #8a6cff);
+    color: #fff; border: none; padding: 13px 20px; border-radius: 13px;
+    font-size: 15px; font-weight: 600; cursor: pointer; transition: .15s;
+    width: 100%; font-family: inherit;
+  }
+  .btn:active { transform: scale(.98); opacity: .9; }
+  .btn.green { background: linear-gradient(135deg, var(--green), #22c55e); color: #06331b; }
+
+  /* ---------- 卡片 ---------- */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 12px; }
+  .card {
+    background: var(--card); border: 1px solid var(--card-border);
+    border-radius: var(--radius); padding: 15px 14px 14px;
+    box-shadow: var(--shadow); position: relative; overflow: hidden;
+    transition: transform .18s, border-color .2s;
+    animation: pop .3s ease both;
+  }
+  @keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: none; } }
+  .card:active { transform: scale(.985); }
+  .card .emoji { font-size: 26px; line-height: 1; margin-bottom: 9px; }
+  .card .name { font-size: 15px; font-weight: 600; margin-bottom: 3px; word-break: break-word; line-height: 1.35; padding-right: 18px; }
+  .card .date { font-size: 11px; color: var(--text-dim); margin-bottom: 10px; }
+  .card .count { font-size: 27px; font-weight: 700; line-height: 1.05; display: block; }
+  .card .count small { font-size: 12px; font-weight: 400; color: var(--text-dim); margin-left: 3px; }
+  .card .tag { font-size: 11px; padding: 3px 9px; border-radius: 999px; display: inline-block; margin-top: 8px; }
+  .tag.up { background: rgba(251,191,36,.15); color: var(--orange); }
+  .tag.down { background: rgba(74,222,128,.15); color: var(--green); }
+  .tag.today { background: rgba(255,126,182,.18); color: var(--accent2); }
+  .card .stat { font-size: 11px; color: var(--text-dim); margin-top: 7px; }
+  .card .stat b { color: var(--text); font-weight: 600; }
+  .card .del {
+    position: absolute; top: 8px; right: 6px; background: transparent;
+    border: none; color: var(--text-dim); cursor: pointer; font-size: 20px;
+    line-height: 1; padding: 6px 9px; transition: .2s; opacity: .5;
+  }
+  .card .del:active { color: var(--red); opacity: 1; }
+
+  /* 打卡卡片专属 */
+  .card.habit { border-left: 3px solid rgba(74,222,128,.5); }
+  .card.habit.checked { border-left-color: var(--green); background: linear-gradient(135deg, rgba(74,222,128,.14), var(--card)); }
+  .week { display: flex; gap: 4px; margin-top: 10px; }
+  .week i {
+    flex: 1; height: 6px; border-radius: 3px; background: rgba(127,127,127,.22);
+    transition: background .25s;
+  }
+  .week i.on { background: var(--green); }
+  .week i.today-mark { box-shadow: 0 0 0 1.5px var(--accent2); }
+  /* 开始日期之前的格子：空心，区别于「漏打卡」 */
+  .week i.na { background: transparent; box-shadow: inset 0 0 0 1px rgba(127,127,127,.25); }
+  .checkin-btn {
+    margin-top: 11px; width: 100%; border: none; border-radius: 11px;
+    padding: 10px; font-size: 13px; font-weight: 700; cursor: pointer;
+    background: linear-gradient(135deg, var(--green), #22c55e); color: #06331b;
+    transition: .15s; font-family: inherit;
+  }
+  .checkin-btn.done {
+    background: rgba(74,222,128,.16); color: var(--green);
+    border: 1px solid rgba(74,222,128,.35);
+  }
+  .checkin-btn:active { transform: scale(.96); }
+
+  /* 尚未到开始日期 */
+  .card.habit.pending { border-left-color: rgba(127,127,127,.35); }
+  .card.habit.pending .emoji { filter: grayscale(.6); opacity: .7; }
+  .card.habit.pending .count { color: var(--text-dim); }
+  .checkin-btn.pending {
+    background: rgba(127,127,127,.13); color: var(--text-dim);
+    border: 1px dashed var(--card-border); font-weight: 600;
+  }
+  .checkin-btn.pending:active { transform: none; }
+  .tag.wait { background: rgba(127,127,127,.16); color: var(--text-dim); }
+  .hint-line {
+    font-size: 12px; margin-top: 7px; line-height: 1.5;
+    color: var(--accent2); min-height: 0;
+  }
+  .hint-line:empty { display: none; }
+
+  .empty {
+    color: var(--text-dim); font-size: 13px; padding: 26px 16px; text-align: center;
+    border: 1px dashed var(--card-border); border-radius: var(--radius); line-height: 1.7;
+    grid-column: 1 / -1;
+  }
+  footer { text-align: center; color: var(--text-dim); font-size: 11px; margin-top: 34px; line-height: 1.7; }
+
+  /* ---------- 轻提示 ---------- */
+  #toast {
+    position: fixed; left: 50%; bottom: calc(var(--sab) + 34px);
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(20,24,40,.94); color: #fff; padding: 11px 20px;
+    border-radius: 999px; font-size: 13.5px; opacity: 0; pointer-events: none;
+    transition: .28s; z-index: 99; max-width: 84vw; text-align: center;
+    border: 1px solid rgba(255,255,255,.14); backdrop-filter: blur(8px);
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body data-theme="dark">
+<div class="app">
+  <div class="topbar">
+    <div class="brand">
+      <h1>时光记忆</h1>
+      <span class="sub" id="todayLabel"></span>
+    </div>
+    <button class="icon-btn" id="themeBtn" aria-label="切换主题">🌙</button>
+  </div>
+
+  <div class="overview">
+    <div class="ov-item"><div class="n" id="ovDone">0<span style="font-size:13px;color:var(--text-dim)">/0</span></div><div class="l">今日打卡</div></div>
+    <div class="ov-item"><div class="n" id="ovStreak">0</div><div class="l">最长连续</div></div>
+    <div class="ov-item"><div class="n" id="ovNext">—</div><div class="l">最近纪念日</div></div>
+  </div>
+
+  <!-- ============ 坚持打卡（置于纪念日之前） ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="dot b"></span>
+      <span class="t">坚持打卡</span>
+      <span class="spacer"></span>
+      <button class="add-toggle" id="tHabit"><span>＋</span>新习惯</button>
+    </div>
+    <div class="tip">每天点一下「今日打卡」；断签后连续天数重置，累计天数保留。</div>
+    <div class="form" id="fHabit">
+      <div class="form-inner">
+        <div class="field">
+          <label>习惯名称</label>
+          <input type="text" id="habitName" placeholder="如：背单词 / 跑步 / 早睡" maxlength="20">
+        </div>
+        <div class="field">
+          <label>开始日期（留空为今天）</label>
+          <input type="date" id="habitStart">
+          <div class="hint-line" id="habitStartHint"></div>
+        </div>
+        <div class="field">
+          <label>图标</label>
+          <div class="emoji-row" id="habitEmojiRow"></div>
+        </div>
+        <button class="btn green" id="addHabit">添加习惯</button>
+      </div>
+    </div>
+    <div class="grid" id="habitGrid"></div>
+  </section>
+
+  <!-- ============ 纪念日 ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="dot a"></span>
+      <span class="t">纪念日</span>
+      <span class="spacer"></span>
+      <button class="add-toggle" id="tAnni"><span>＋</span>新纪念日</button>
+    </div>
+    <div class="tip">未来的日子倒数，过去的日子累计，自动按临近程度排序。</div>
+    <div class="form" id="fAnni">
+      <div class="form-inner">
+        <div class="field">
+          <label>名称</label>
+          <input type="text" id="anniName" placeholder="如：生日 / 考研日 / 恋爱纪念日" maxlength="20">
+        </div>
+        <div class="field">
+          <label>日期</label>
+          <input type="date" id="anniDate">
+        </div>
+        <div class="field">
+          <label>图标</label>
+          <div class="emoji-row" id="anniEmojiRow"></div>
+        </div>
+        <button class="btn" id="addAnni">添加纪念日</button>
+      </div>
+    </div>
+    <div class="grid" id="anniGrid"></div>
+  </section>
+
+  <footer>
+    数据保存在本机，不会上传<br>卸载应用或清除应用数据会丢失记录
+  </footer>
+</div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+const LS_ANNI = 'tm_anniversaries';
+const LS_HABIT = 'tm_habits';
+const LS_THEME = 'tm_theme';
+
+const $ = id => document.getElementById(id);
+
+/* ---------- 日期工具：全部基于本机时区，避免 UTC 偏移导致的跨天误判 ---------- */
+function fmtYMD(d){
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+const todayStr = () => fmtYMD(new Date());
+function parseYMD(s){
+  const p = String(s).split('-').map(Number);
+  return new Date(p[0], (p[1]||1)-1, p[2]||1);
+}
+function dayDiff(a, b){ return Math.round((parseYMD(a) - parseYMD(b)) / 86400000); }
+function shiftDay(s, n){ const d = parseYMD(s); d.setDate(d.getDate()+n); return fmtYMD(d); }
+const fmtDate = s => s.replace(/-/g,'/');
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ---------- 轻提示 ---------- */
+let toastTimer;
+function toast(msg){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1900);
+}
+
+/* ---------- 主题 ---------- */
+function applyTheme(t){
+  document.body.setAttribute('data-theme', t);
+  $('themeBtn').textContent = t === 'dark' ? '🌙' : '☀️';
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if(meta) meta.setAttribute('content', t === 'dark' ? '#0f1220' : '#eef1f8');
+  // 安卓外壳：让系统状态栏 / 导航栏跟随主题
+  try { if(window.AndroidBridge && AndroidBridge.setTheme) AndroidBridge.setTheme(t); } catch(e){}
+}
+applyTheme(localStorage.getItem(LS_THEME) || 'dark');
+$('themeBtn').onclick = () => {
+  const next = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  localStorage.setItem(LS_THEME, next);
+  applyTheme(next);
+};
+
+/* ---------- 存储 ---------- */
+const load = key => { try { return JSON.parse(localStorage.getItem(key)) || []; } catch(e){ return []; } };
+const save = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e){ toast('保存失败，存储空间可能已满'); } };
+let anniversaries = load(LS_ANNI);
+let habits = load(LS_HABIT);
+
+/* ---------- 数据自检 ----------
+   旧版本没有校验开始日期，可能存下「还没开始就打卡」的脏记录，这里统一清理 */
+function sanitizeHabits(list){
+  let dirty = false;
+  list.forEach(h => {
+    if(!h.start){
+      // 历史数据缺开始日期：取最早一条打卡记录，都没有就算今天开始
+      const recs = (h.records || []).slice().sort();
+      h.start = recs[0] || todayStr();
+      dirty = true;
+    }
+    const recs = h.records || [];
+    const kept = recs.filter(r => r >= h.start);   // YYYY-MM-DD 补零后可直接字符串比较
+    if(kept.length !== recs.length){ h.records = kept; dirty = true; }
+  });
+  return dirty;
+}
+if(sanitizeHabits(habits)) save(LS_HABIT, habits);
+
+/* 是否已到开始日期 */
+const isStarted = h => !h.start || h.start <= todayStr();
+
+/* ---------- Emoji 选择器 ---------- */
+const HABIT_EMOJIS = ['✅','📚','🏃','💧','🌅','💪','🧘','🎸','✍️','😴','🍎','🚭'];
+const ANNI_EMOJIS  = ['🎉','🎂','❤️','🎓','✈️','🏠','💍','🌸','🎯','⭐','🍀','📅'];
+function buildEmojiRow(container, list){
+  container.innerHTML = list.map((e,i) =>
+    `<button type="button" class="emoji-pick${i===0?' sel':''}" data-e="${e}">${e}</button>`).join('');
+  container.onclick = ev => {
+    const b = ev.target.closest('.emoji-pick');
+    if(!b) return;
+    container.querySelectorAll('.emoji-pick').forEach(x => x.classList.remove('sel'));
+    b.classList.add('sel');
+  };
+}
+const pickedEmoji = container => (container.querySelector('.emoji-pick.sel') || {}).dataset?.e || '✅';
+buildEmojiRow($('habitEmojiRow'), HABIT_EMOJIS);
+buildEmojiRow($('anniEmojiRow'), ANNI_EMOJIS);
+
+/* ---------- 折叠表单 ---------- */
+function bindToggle(btnId, formId, focusId){
+  $(btnId).onclick = () => {
+    const f = $(formId), b = $(btnId);
+    const open = f.classList.toggle('open');
+    b.classList.toggle('open', open);
+    b.firstElementChild.textContent = open ? '×' : '＋';
+    if(open && focusId) setTimeout(() => $(focusId).focus(), 220);
+  };
+}
+bindToggle('tHabit', 'fHabit', 'habitName');
+bindToggle('tAnni', 'fAnni', 'anniName');
+function closeForm(btnId, formId){
+  $(formId).classList.remove('open');
+  const b = $(btnId);
+  b.classList.remove('open');
+  b.firstElementChild.textContent = '＋';
+}
+
+/* ---------- 打卡逻辑 ---------- */
+function streak(records, start){
+  if(!records || !records.length) return 0;
+  const set = new Set(records);
+  let cur = todayStr(), count = 0;
+  // 今天还没打卡时从昨天起算，避免误判断签
+  if(!set.has(cur)) cur = shiftDay(cur, -1);
+  while(set.has(cur)){
+    count++;
+    if(start && cur <= start) break;   // 回溯到开始日就停，不跨越开始日期
+    cur = shiftDay(cur, -1);
+  }
+  return count;
+}
+
+function renderHabits(){
+  const grid = $('habitGrid');
+  if(!habits.length){
+    grid.innerHTML = '<div class="empty">还没有习惯<br>点右上角「＋ 新习惯」开始坚持 💪</div>';
+    return;
+  }
+  const today = todayStr();
+  grid.innerHTML = habits.map(h => {
+    const recs = h.records || [];
+    const set = new Set(recs);
+    const started = isStarted(h);
+    const wait = started ? 0 : dayDiff(h.start, today);
+    const waitText = wait === 1 ? '明天开始' : `${wait} 天后开始`;
+    const checked = set.has(today);
+    const st = streak(recs, h.start);
+    // 最近 7 天（含今天）；开始日之前的格子画成空心，区别于「漏打卡」
+    let week = '';
+    for(let i = 6; i >= 0; i--){
+      const day = shiftDay(today, -i);
+      const cls = [];
+      if(h.start && day < h.start) cls.push('na');
+      else if(set.has(day)) cls.push('on');
+      if(i === 0) cls.push('today-mark');
+      week += `<i class="${cls.join(' ')}"></i>`;
+    }
+    return `<div class="card habit ${checked ? 'checked' : ''}${started ? '' : ' pending'}">
+      <button class="del" data-id="${h.id}">×</button>
+      <div class="emoji">${h.emoji || '✅'}</div>
+      <div class="name">${escapeHtml(h.name)}</div>
+      <div class="date">${started ? '始于 ' + fmtDate(h.start) : fmtDate(h.start) + ' 开始'}</div>
+      <span class="count">${st}<small>天连续</small></span>
+      <div class="stat">累计 <b>${recs.length}</b> 天</div>
+      <div class="week">${week}</div>
+      <button class="checkin-btn ${started ? (checked ? 'done' : '') : 'pending'}" data-id="${h.id}"${started ? '' : ' aria-disabled="true"'}>${
+        started ? (checked ? '今日已打卡 ✓' : '今日打卡') : waitText
+      }</button>
+    </div>`;
+  }).join('');
+
+  grid.querySelectorAll('.del').forEach(b => b.onclick = () => {
+    const h = habits.find(x => x.id === b.dataset.id);
+    if(!h) return;
+    if(!confirm(`删除习惯「${h.name}」？累计 ${(h.records||[]).length} 天的记录将一起清除。`)) return;
+    habits = habits.filter(x => x.id !== b.dataset.id);
+    save(LS_HABIT, habits); renderHabits(); renderOverview();
+    toast('已删除');
+  });
+
+  grid.querySelectorAll('.checkin-btn').forEach(b => b.onclick = () => {
+    const h = habits.find(x => x.id === b.dataset.id);
+    if(!h) return;
+    const t = todayStr();
+    // 还没到开始日期，不允许打卡（界面禁用之外再拦一道，防止数据被改坏）
+    if(!isStarted(h)){
+      const d = dayDiff(h.start, t);
+      toast(`还没开始哦，${fmtDate(h.start)} 起才能打卡（还有 ${d} 天）`);
+      return;
+    }
+    h.records = h.records || [];
+    const i = h.records.indexOf(t);
+    if(i >= 0){
+      if(!confirm('撤销今天的打卡记录？')) return;
+      h.records.splice(i, 1);
+      save(LS_HABIT, habits); renderHabits(); renderOverview();
+      toast('已撤销今日打卡');
+    } else {
+      h.records.push(t);
+      h.records.sort();
+      save(LS_HABIT, habits); renderHabits(); renderOverview();
+      const st = streak(h.records, h.start);
+      toast(st > 1 ? `打卡成功！已连续 ${st} 天 🔥` : '打卡成功，新的开始 ✨');
+    }
+  });
+}
+
+/* 选日期时实时说明会发生什么，避免「设了未来日期却以为能马上打卡」 */
+function updateStartHint(){
+  const el = $('habitStartHint'), v = $('habitStart').value;
+  if(!v){ el.textContent = ''; return; }
+  const d = dayDiff(v, todayStr());
+  el.textContent = d > 0 ? `${d} 天后才开始，在此之前无法打卡`
+                 : d === 0 ? '今天开始，添加后即可打卡'
+                 : `已经开始 ${-d} 天，今天可以直接打卡`;
+}
+$('habitStart').addEventListener('change', updateStartHint);
+$('habitStart').addEventListener('input', updateStartHint);
+
+$('addHabit').onclick = () => {
+  const name = $('habitName').value.trim();
+  if(!name){ toast('请填写习惯名称'); $('habitName').focus(); return; }
+  const start = $('habitStart').value || todayStr();
+  const wait = dayDiff(start, todayStr());
+  habits.push({
+    id: Date.now() + '' + Math.floor(Math.random()*1000),
+    name,
+    start,
+    emoji: pickedEmoji($('habitEmojiRow')),
+    records: []
+  });
+  save(LS_HABIT, habits);
+  $('habitName').value = ''; $('habitStart').value = '';
+  updateStartHint();
+  closeForm('tHabit', 'fHabit');
+  renderHabits(); renderOverview();
+  toast(wait > 0 ? `已添加，${fmtDate(start)} 起开始打卡 ⏳` : '习惯已添加，今天就打第一卡吧 💪');
+};
+
+/* ---------- 纪念日逻辑 ---------- */
+function renderAnni(){
+  const grid = $('anniGrid');
+  if(!anniversaries.length){
+    grid.innerHTML = '<div class="empty">还没有纪念日<br>点右上角「＋ 新纪念日」记录重要的日子 ✨</div>';
+    return;
+  }
+  const today = todayStr();
+  const list = anniversaries
+    .map(a => ({ ...a, d: dayDiff(a.date, today) }))
+    .sort((x, y) => {
+      // 未来的按临近排前，过去的按最近排后
+      if(x.d >= 0 && y.d >= 0) return x.d - y.d;
+      if(x.d < 0 && y.d < 0) return y.d - x.d;
+      return x.d >= 0 ? -1 : 1;
+    });
+  grid.innerHTML = list.map(a => {
+    let tag, count;
+    if(a.d > 0){
+      tag = `<span class="tag up">还有 ${a.d} 天</span>`;
+      count = `<span class="count">${a.d}<small>天后</small></span>`;
+    } else if(a.d === 0){
+      tag = `<span class="tag today">就是今天 🎊</span>`;
+      count = `<span class="count">今天</span>`;
+    } else {
+      tag = `<span class="tag down">已过 ${Math.abs(a.d)} 天</span>`;
+      count = `<span class="count">${Math.abs(a.d)}<small>天前</small></span>`;
+    }
+    return `<div class="card">
+      <button class="del" data-id="${a.id}">×</button>
+      <div class="emoji">${a.emoji || '🎉'}</div>
+      <div class="name">${escapeHtml(a.name)}</div>
+      <div class="date">${fmtDate(a.date)}</div>
+      ${count}
+      ${tag}
+    </div>`;
+  }).join('');
+
+  grid.querySelectorAll('.del').forEach(b => b.onclick = () => {
+    const a = anniversaries.find(x => x.id === b.dataset.id);
+    if(!a) return;
+    if(!confirm(`删除纪念日「${a.name}」？`)) return;
+    anniversaries = anniversaries.filter(x => x.id !== b.dataset.id);
+    save(LS_ANNI, anniversaries); renderAnni(); renderOverview();
+    toast('已删除');
+  });
+}
+
+$('addAnni').onclick = () => {
+  const name = $('anniName').value.trim();
+  const date = $('anniDate').value;
+  if(!name){ toast('请填写名称'); $('anniName').focus(); return; }
+  if(!date){ toast('请选择日期'); $('anniDate').focus(); return; }
+  anniversaries.push({
+    id: Date.now() + '' + Math.floor(Math.random()*1000),
+    name, date,
+    emoji: pickedEmoji($('anniEmojiRow'))
+  });
+  save(LS_ANNI, anniversaries);
+  $('anniName').value = ''; $('anniDate').value = '';
+  closeForm('tAnni', 'fAnni');
+  renderAnni(); renderOverview();
+  toast('纪念日已添加 ✨');
+};
+
+/* ---------- 今日概览 ---------- */
+function renderOverview(){
+  const today = todayStr();
+  // 分母只算「已经开始」的习惯，未开始的不该拖低今日进度
+  const active = habits.filter(isStarted);
+  const done = active.filter(h => (h.records || []).includes(today)).length;
+  $('ovDone').innerHTML = `${done}<span style="font-size:13px;color:var(--text-dim)">/${active.length}</span>`;
+  const maxStreak = active.length ? Math.max(...active.map(h => streak(h.records || [], h.start))) : 0;
+  $('ovStreak').textContent = maxStreak;
+
+  const future = anniversaries
+    .map(a => ({ ...a, d: dayDiff(a.date, today) }))
+    .filter(a => a.d >= 0)
+    .sort((x, y) => x.d - y.d)[0];
+  $('ovNext').innerHTML = future
+    ? (future.d === 0 ? '今天' : `${future.d}<span style="font-size:12px;color:var(--text-dim)">天</span>`)
+    : '—';
+
+  const d = new Date();
+  const wd = ['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];
+  $('todayLabel').textContent = `${d.getMonth()+1} 月 ${d.getDate()} 日 · ${wd}`;
+}
+
+/* ---------- 初始化 ---------- */
+let lastDay = todayStr();
+function renderAll(){ renderHabits(); renderAnni(); renderOverview(); }
+renderAll();
+
+// 跨天自动刷新（回到前台或整点检查）
+setInterval(() => {
+  const t = todayStr();
+  if(t !== lastDay){ lastDay = t; renderAll(); }
+}, 30000);
+document.addEventListener('visibilitychange', () => {
+  if(!document.hidden){
+    const t = todayStr();
+    if(t !== lastDay){ lastDay = t; }
+    renderAll();
+  }
+});
+
+// 注册 Service Worker（浏览器 / PWA 场景，APK 内忽略失败）
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>

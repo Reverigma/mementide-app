@@ -1,0 +1,12 @@
+# 默认由 Git 自动识别文本文件并规范化换行
+* text=auto
+
+# Shell 脚本强制 LF —— 带 CRLF 的脚本在 Linux / macOS 上无法执行
+*.sh text eol=lf
+
+# 明确标记二进制，避免任何换行转换损坏文件
+*.png   binary
+*.apk   binary
+*.idsig binary
+*.keystore binary
+*.jks   binary
