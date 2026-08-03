@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""生成「时光记忆」应用图标（纯标准库，无需 Pillow）。
+"""生成「时光记忆 · TimeMemo」应用图标（纯标准库，无需 Pillow）。
 图形：渐变圆角方块 + 白色时钟环 + 对勾，寓意「时间 + 坚持打卡」。
 """
 import zlib, struct, math, os, sys

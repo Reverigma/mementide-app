@@ -23,7 +23,7 @@ import android.widget.TextView;
 import java.lang.ref.WeakReference;
 
 /**
- * 「时光记忆」应用外壳：一个全屏 WebView，加载打包在 assets 中的本地页面。
+ * 「时光记忆 · TimeMemo」应用外壳：一个全屏 WebView，加载打包在 assets 中的本地页面。
  * 数据通过 localStorage 存在应用私有目录，全程不联网。
  */
 public class MainActivity extends Activity {

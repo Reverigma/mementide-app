@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-#  「时光记忆」Android APK 构建脚本（Windows / Git Bash）
+#  「时光记忆 · TimeMemo」Android APK 构建脚本（Windows / Git Bash）
 #
 #  用法:
 #    bash build/build_apk.sh [versionName] [versionCode]

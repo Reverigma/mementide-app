@@ -1,6 +1,6 @@
 {
-  "name": "时光记忆 · 打卡与纪念日",
-  "short_name": "时光记忆",
+  "name": "时光记忆 · TimeMemo",
+  "short_name": "TimeMemo",
   "description": "坚持打卡与纪念日倒数，数据保存在本机",
   "start_url": "index.html",
   "scope": "./",
