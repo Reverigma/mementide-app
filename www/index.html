@@ -105,7 +105,7 @@
     max-height: 0; overflow: hidden; opacity: 0;
     transition: max-height .3s ease, opacity .25s, margin .3s;
   }
-  .form.open { max-height: 420px; opacity: 1; margin-bottom: 16px; }
+  .form.open { max-height: 620px; opacity: 1; margin-bottom: 16px; }
   .form-inner {
     background: var(--card); border: 1px solid var(--card-border);
     border-radius: var(--radius); padding: 14px; display: flex;
@@ -123,6 +123,19 @@
   .form input::placeholder { color: var(--text-dim); }
   input[type="date"] { color-scheme: dark; }
   [data-theme="light"] input[type="date"] { color-scheme: light; }
+
+  /* 分段选择器（重复方式） */
+  .seg { display: flex; gap: 6px; }
+  .seg button {
+    flex: 1; padding: 11px 4px; border-radius: 11px; font-size: 13px;
+    background: rgba(127,127,127,.12); border: 1px solid transparent;
+    color: var(--text-dim); cursor: pointer; font-family: inherit; transition: .15s;
+  }
+  .seg button.sel {
+    border-color: var(--accent); background: rgba(108,140,255,.18);
+    color: var(--text); font-weight: 600;
+  }
+  .seg button:active { transform: scale(.96); }
 
   .emoji-row { display: flex; flex-wrap: wrap; gap: 7px; }
   .emoji-pick {
@@ -163,6 +176,17 @@
   .tag.up { background: rgba(251,191,36,.15); color: var(--orange); }
   .tag.down { background: rgba(74,222,128,.15); color: var(--green); }
   .tag.today { background: rgba(255,126,182,.18); color: var(--accent2); }
+  /* 标签 + 重复开关同一行 */
+  .tag-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+  .card .tag-row .tag { margin-top: 0; }
+  .card .rep {
+    font-size: 11px; padding: 3px 8px; border-radius: 999px; cursor: pointer;
+    background: rgba(127,127,127,.14); border: 1px solid var(--card-border);
+    color: var(--text-dim); font-family: inherit; line-height: 1.55;
+    transition: .15s; white-space: nowrap;
+  }
+  .card .rep:active { transform: scale(.93); }
+  .card.anni.cycle { border-left: 3px solid rgba(255,126,182,.5); }
   .card .stat { font-size: 11px; color: var(--text-dim); margin-top: 7px; }
   .card .stat b { color: var(--text); font-weight: 600; }
   .card .del {
@@ -285,7 +309,7 @@
       <span class="spacer"></span>
       <button class="add-toggle" id="tAnni"><span>＋</span>新纪念日</button>
     </div>
-    <div class="tip">未来的日子倒数，过去的日子累计，自动按临近程度排序。</div>
+    <div class="tip">生日、周年这类每年都会来的日子选「每年」，会自动倒数下一次。卡片上的 🔁 可随时切换。</div>
     <div class="form" id="fAnni">
       <div class="form-inner">
         <div class="field">
@@ -295,6 +319,15 @@
         <div class="field">
           <label>日期</label>
           <input type="date" id="anniDate">
+        </div>
+        <div class="field">
+          <label>重复</label>
+          <div class="seg" id="anniRepeat">
+            <button type="button" class="sel" data-v="year">每年</button>
+            <button type="button" data-v="month">每月</button>
+            <button type="button" data-v="none">不重复</button>
+          </div>
+          <div class="hint-line" id="anniHint"></div>
         </div>
         <div class="field">
           <label>图标</label>
@@ -332,6 +365,45 @@ function parseYMD(s){
 function dayDiff(a, b){ return Math.round((parseYMD(a) - parseYMD(b)) / 86400000); }
 function shiftDay(s, n){ const d = parseYMD(s); d.setDate(d.getDate()+n); return fmtYMD(d); }
 const fmtDate = s => s.replace(/-/g,'/');
+
+/* ---------- 周期性日期 ----------
+   组装 年/月/日 时做月末收敛：2 月 29 日生日在平年落到 2 月 28 日，
+   每月 31 号在 2 月落到 28/29 号。直接 new Date(y,1,29) 会静默跳到 3 月 1 日。 */
+function makeDate(y, m, day){
+  const lastDay = new Date(y, m + 1, 0).getDate();
+  return new Date(y, m, Math.min(day, lastDay));
+}
+
+/* 下一次发生的日期（含今天）。原始日期尚未到达则返回它本身；
+   一次性且已过去返回 null。 */
+function nextOccur(dateStr, repeat, fromStr){
+  const base = parseYMD(dateStr), from = parseYMD(fromStr);
+  if(base >= from) return dateStr;
+  if(repeat === 'year'){
+    const y = from.getFullYear();
+    let n = makeDate(y, base.getMonth(), base.getDate());
+    if(n < from) n = makeDate(y + 1, base.getMonth(), base.getDate());
+    return fmtYMD(n);
+  }
+  if(repeat === 'month'){
+    let n = makeDate(from.getFullYear(), from.getMonth(), base.getDate());
+    // 月份 +1 越界时 Date 会自动跨年，无需特判
+    if(n < from) n = makeDate(from.getFullYear(), from.getMonth() + 1, base.getDate());
+    return fmtYMD(n);
+  }
+  return null;
+}
+
+/* 这一次是第几周年 / 第几个月 */
+function occurIndex(dateStr, occurStr, repeat){
+  const b = parseYMD(dateStr), o = parseYMD(occurStr);
+  if(repeat === 'year') return o.getFullYear() - b.getFullYear();
+  if(repeat === 'month') return (o.getFullYear() - b.getFullYear()) * 12 + (o.getMonth() - b.getMonth());
+  return 0;
+}
+
+const REPEAT_LABEL = { year: '每年', month: '每月', none: '不重复' };
+const REPEAT_CYCLE = ['year', 'month', 'none'];
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 /* ---------- 轻提示 ---------- */
@@ -384,6 +456,18 @@ function sanitizeHabits(list){
   return dirty;
 }
 if(sanitizeHabits(habits)) save(LS_HABIT, habits);
+
+/* 旧版本纪念日没有「重复」概念，一律补成每年 ——
+   生日 / 周年这类占绝大多数，补成一次性反而会继续丢失倒数。
+   判断错了可以在卡片上点 🔁 一键改。 */
+function sanitizeAnni(list){
+  let dirty = false;
+  list.forEach(a => {
+    if(!REPEAT_LABEL[a.repeat]){ a.repeat = 'year'; dirty = true; }
+  });
+  return dirty;
+}
+if(sanitizeAnni(anniversaries)) save(LS_ANNI, anniversaries);
 
 /* 是否已到开始日期 */
 const isStarted = h => !h.start || h.start <= todayStr();
@@ -555,32 +639,61 @@ function renderAnni(){
   }
   const today = todayStr();
   const list = anniversaries
-    .map(a => ({ ...a, d: dayDiff(a.date, today) }))
+    .map(a => {
+      const next = nextOccur(a.date, a.repeat, today);
+      return {
+        ...a,
+        next,
+        d: next === null ? null : dayDiff(next, today),  // 距下次天数
+        passed: dayDiff(today, a.date)                    // 距原始日期已过天数
+      };
+    })
     .sort((x, y) => {
-      // 未来的按临近排前，过去的按最近排后
-      if(x.d >= 0 && y.d >= 0) return x.d - y.d;
-      if(x.d < 0 && y.d < 0) return y.d - x.d;
-      return x.d >= 0 ? -1 : 1;
+      // 有下一次的排前面，按临近程度；纯回顾型（一次性且已过）垫后
+      if(x.d !== null && y.d !== null) return x.d - y.d;
+      if(x.d === null && y.d === null) return x.passed - y.passed;
+      return x.d !== null ? -1 : 1;
     });
+
   grid.innerHTML = list.map(a => {
-    let tag, count;
-    if(a.d > 0){
-      tag = `<span class="tag up">还有 ${a.d} 天</span>`;
-      count = `<span class="count">${a.d}<small>天后</small></span>`;
+    const cycling = a.repeat !== 'none';
+    const unit = a.repeat === 'month' ? '个月' : '周年';
+    // 周期性的话，这次是第几周年 / 第几个月
+    const n = (cycling && a.d !== null) ? occurIndex(a.date, a.next, a.repeat) : 0;
+
+    // 信息分三层，不重复表达：大数字说「多久」，副行说「细节」，徽章说「状态」
+    let count, tag;
+    const lines = [];
+
+    if(a.d === null){
+      // 一次性且已过去：纯回顾
+      count = `<span class="count">${a.passed}<small>天前</small></span>`;
+      tag = `<span class="tag down">已过 ${a.passed} 天</span>`;
     } else if(a.d === 0){
-      tag = `<span class="tag today">就是今天 🎊</span>`;
       count = `<span class="count">今天</span>`;
+      tag = `<span class="tag today">就是今天 🎊</span>`;
+      if(n > 0) lines.push(`今天是第 <b>${n}</b> ${unit}`);
+      if(a.passed > 0) lines.push(`已过 <b>${a.passed}</b> 天`);
     } else {
-      tag = `<span class="tag down">已过 ${Math.abs(a.d)} 天</span>`;
-      count = `<span class="count">${Math.abs(a.d)}<small>天前</small></span>`;
+      count = `<span class="count">${a.d}<small>天后</small></span>`;
+      tag = n > 0 ? `<span class="tag up">第 ${n} ${unit}</span>`
+                  : `<span class="tag up">还有 ${a.d} 天</span>`;
+      if(a.next !== a.date) lines.push(`下次 <b>${fmtDate(a.next)}</b>`);
+      if(a.passed > 0) lines.push(`已过 <b>${a.passed}</b> 天`);
     }
-    return `<div class="card">
+    const stat = lines.map(s => `<div class="stat">${s}</div>`).join('');
+
+    return `<div class="card anni${cycling ? ' cycle' : ''}">
       <button class="del" data-id="${a.id}">×</button>
       <div class="emoji">${a.emoji || '🎉'}</div>
       <div class="name">${escapeHtml(a.name)}</div>
       <div class="date">${fmtDate(a.date)}</div>
       ${count}
-      ${tag}
+      ${stat}
+      <div class="tag-row">
+        ${tag}
+        <button class="rep" data-id="${a.id}" title="点击切换重复方式">🔁 ${REPEAT_LABEL[a.repeat]}</button>
+      </div>
     </div>`;
   }).join('');
 
@@ -592,23 +705,79 @@ function renderAnni(){
     save(LS_ANNI, anniversaries); renderAnni(); renderOverview();
     toast('已删除');
   });
+
+  // 点 🔁 循环切换：每年 → 每月 → 不重复
+  grid.querySelectorAll('.rep').forEach(b => b.onclick = () => {
+    const a = anniversaries.find(x => x.id === b.dataset.id);
+    if(!a) return;
+    const i = REPEAT_CYCLE.indexOf(a.repeat);
+    a.repeat = REPEAT_CYCLE[(i + 1) % REPEAT_CYCLE.length];
+    save(LS_ANNI, anniversaries);
+    renderAnni(); renderOverview();
+    const nx = nextOccur(a.date, a.repeat, todayStr());
+    toast(nx ? `「${a.name}」${REPEAT_LABEL[a.repeat]} · 下次 ${fmtDate(nx)}`
+             : `「${a.name}」已设为不重复，只做回顾`);
+  });
 }
+
+/* 重复方式分段选择器 */
+const anniRepeatSeg = $('anniRepeat');
+const pickedRepeat = () => (anniRepeatSeg.querySelector('button.sel') || {}).dataset?.v || 'year';
+anniRepeatSeg.onclick = ev => {
+  const b = ev.target.closest('button');
+  if(!b) return;
+  anniRepeatSeg.querySelectorAll('button').forEach(x => x.classList.remove('sel'));
+  b.classList.add('sel');
+  updateAnniHint();
+};
+
+/* 选好日期后实时告诉用户下一次是哪天 */
+function updateAnniHint(){
+  const el = $('anniHint'), date = $('anniDate').value;
+  if(!date){ el.textContent = ''; return; }
+  const rep = pickedRepeat();
+  const today = todayStr();
+  const nx = nextOccur(date, rep, today);
+  if(nx === null){
+    el.textContent = `该日期已过去 ${dayDiff(today, date)} 天，只做回顾不倒数`;
+    return;
+  }
+  const d = dayDiff(nx, today);
+  const n = occurIndex(date, nx, rep);
+  const unit = rep === 'month' ? '个月' : '周年';
+  let s = d === 0 ? '就是今天 🎊' : `下次 ${fmtDate(nx)}，还有 ${d} 天`;
+  if(rep !== 'none' && n > 0) s += ` · 第 ${n} ${unit}`;
+  // 2/29 生日在平年会落到 2/28，提前说明免得用户以为算错了
+  const p = parseYMD(date);
+  if(rep === 'year' && p.getMonth() === 1 && p.getDate() === 29) s += '（平年按 2/28 计）';
+  if(rep === 'month' && p.getDate() > 28) s += `（不足 ${p.getDate()} 天的月份按月末计）`;
+  el.textContent = s;
+}
+$('anniDate').addEventListener('change', updateAnniHint);
+$('anniDate').addEventListener('input', updateAnniHint);
 
 $('addAnni').onclick = () => {
   const name = $('anniName').value.trim();
   const date = $('anniDate').value;
   if(!name){ toast('请填写名称'); $('anniName').focus(); return; }
   if(!date){ toast('请选择日期'); $('anniDate').focus(); return; }
+  const repeat = pickedRepeat();
   anniversaries.push({
     id: Date.now() + '' + Math.floor(Math.random()*1000),
-    name, date,
+    name, date, repeat,
     emoji: pickedEmoji($('anniEmojiRow'))
   });
   save(LS_ANNI, anniversaries);
   $('anniName').value = ''; $('anniDate').value = '';
+  $('anniHint').textContent = '';
   closeForm('tAnni', 'fAnni');
   renderAnni(); renderOverview();
-  toast('纪念日已添加 ✨');
+  const nx = nextOccur(date, repeat, todayStr());
+  if(nx === null) toast('已添加，将作为回顾记录 📖');
+  else {
+    const d = dayDiff(nx, todayStr());
+    toast(d === 0 ? '添加成功，就是今天 🎊' : `已添加，距下次还有 ${d} 天 ✨`);
+  }
 };
 
 /* ---------- 今日概览 ---------- */
@@ -621,9 +790,13 @@ function renderOverview(){
   const maxStreak = active.length ? Math.max(...active.map(h => streak(h.records || [], h.start))) : 0;
   $('ovStreak').textContent = maxStreak;
 
+  // 周期性纪念日取「下一次」，否则生日一过就再也不会出现在这里
   const future = anniversaries
-    .map(a => ({ ...a, d: dayDiff(a.date, today) }))
-    .filter(a => a.d >= 0)
+    .map(a => {
+      const nx = nextOccur(a.date, a.repeat, today);
+      return nx === null ? null : { d: dayDiff(nx, today) };
+    })
+    .filter(Boolean)
     .sort((x, y) => x.d - y.d)[0];
   $('ovNext').innerHTML = future
     ? (future.d === 0 ? '今天' : `${future.d}<span style="font-size:12px;color:var(--text-dim)">天</span>`)
