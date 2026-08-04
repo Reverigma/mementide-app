@@ -369,7 +369,7 @@
     <div class="grid" id="anniGrid"></div>
   </section>
 
-  <!-- ============ 数据备份 / 迁移 ============ -->
+  <!-- ============ 数据备份 ============ -->
   <section id="secBackup" hidden>
     <div class="sec-head">
       <span class="dot c"></span>
@@ -876,7 +876,7 @@ function renderOverview(){
   $('todayLabel').textContent = `${d.getMonth()+1} 月 ${d.getDate()} 日 · ${wd}`;
 }
 
-/* ---------- 数据备份 / 迁移 ----------
+/* ---------- 数据备份 ----------
    备份是纯 JSON 文本，跨版本、跨设备通用。
    注意：APK 里页面跑在 file:// 下，不是安全上下文，navigator.clipboard 不可用，
    所以复制必须留 execCommand 兜底；保存文件也要靠安卓外壳的 saveBackup 桥接。 */

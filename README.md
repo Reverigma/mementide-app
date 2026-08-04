@@ -23,7 +23,7 @@
 - 卡片上点 🔁 随时切换重复方式
 - 支持自定义 Emoji 图标
 
-**数据备份 / 迁移**
+**数据备份**
 
 - 点右上角 💾 导出全部数据为 JSON，可存到手机「下载」目录，也可复制为文本
 - 导入支持选择文件或直接粘贴文本，可选**合并**或**覆盖**
@@ -40,23 +40,11 @@
 
 ## 下载安装
 
-下载 [`Mementide-v1.4.apk`](https://github.com/Reverigma/mementide-app/releases/download/v1.4/Mementide-v1.4.apk)，传到手机后允许「安装未知来源应用」即可。
+下载 [`Mementide-v1.0.apk`](https://github.com/Reverigma/mementide-app/releases/download/v1.0/Mementide-v1.0.apk)，传到手机后允许「安装未知来源应用」即可。
 
 - 最低支持 Android 5.0（API 21）
 - 无需任何系统权限，`AndroidManifest.xml` 中未声明网络权限
-- v1.4 起沿用同一签名，可直接覆盖安装
-
-### 老用户请先迁移数据
-
-本项目原名「时光记忆 · TimeMemo」，因与 App Store 上一款同名应用重名，自 v1.4 起更名为「念汐 · Mementide」，**包名同时由 `com.timememo.app` 改为 `com.mementide.app`**。
-
-包名一变，Android 就把它当成另一个应用：v1.4 属于全新安装而非覆盖升级，旧版的打卡与纪念日数据不会自动带过来。装 v1.4 之前请按下面三步搬一次数据：
-
-1. 装 [`TimeMemo-v1.3.1.apk`](https://github.com/Reverigma/mementide-app/releases/download/v1.4/TimeMemo-v1.3.1.apk)（沿用旧包名与旧签名，可直接覆盖升级，数据不动），打开后点右上角 💾 → **保存备份文件**
-2. 装 `Mementide-v1.4.apk`，点右上角 💾 → **选择备份文件** → 导入
-3. 核对数据无误后，卸载桌面上那个「时光记忆（旧版）」
-
-> 旧版里本来就没什么数据的话，直接装 v1.4 即可，跳过上面三步。
+- 沿用同一签名，可直接覆盖安装升级
 
 ---
 
@@ -103,8 +91,7 @@
 │   ├── build_apk.sh              # 一键构建脚本
 │   └── make_icons.py             # 纯 Python 生成图标（无第三方依赖）
 ├── index.original.backup.html    # 改造前的原始单页版本，留档
-├── Mementide-v1.4.apk            # 已签名安装包（亦见 Releases）
-└── TimeMemo-v1.3.1.apk           # 旧包名过渡版，仅供老用户导出数据
+└── Mementide-v1.0.apk            # 已签名安装包（亦见 Releases）
 ```
 
 ---
@@ -125,23 +112,12 @@ export JDK_WIN='C:\path\to\jdk-17'
 export ANDROID_SDK_WIN='C:\path\to\android-sdk'
 
 # 构建：参数为 versionName 和 versionCode
-bash build/build_apk.sh 1.4 4
+bash build/build_apk.sh 1.0 5
 ```
 
 产物输出到项目根目录 `Mementide-v<版本号>.apk`。
 
 **关于签名**：`.keystore` 文件不入库（见 `.gitignore`）。首次构建会自动生成一个新密钥，因此**你构建出的 APK 无法覆盖安装本仓库提供的 APK**，需先卸载。若想保持一致，请妥善保管首次生成的 keystore。
-
-**打旧包名的过渡版**（更名场景专用，用环境变量覆盖品牌与签名）：
-
-```bash
-MTD_PACKAGE=com.timememo.app \
-MTD_APK_PREFIX=TimeMemo \
-MTD_APP_LABEL='时光记忆（旧版）' \
-MTD_PAGE_TITLE='时光记忆 · 数据迁移版' \
-MTD_KEYSTORE_FILE=timememo.keystore \
-bash build/build_apk.sh 1.3.1 4
-```
 
 **重新生成图标**：
 

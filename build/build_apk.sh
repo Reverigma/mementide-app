@@ -30,13 +30,11 @@
 #   7. whoami 在加入域/工作组的机器上返回 "HOST\user"，直接拼进
 #      C:\Users\ 会得到 C:\Users\HOST\user\... 这种不存在的路径，
 #      aapt2.exe 报 "No such file or directory"。优先取 USERPROFILE。
-#   8. 换包名 = 换应用身份，装到手机上是全新一个 App，不是覆盖升级，
-#      旧包的 localStorage 数据带不过来。所以更名时要先出一版「旧包名 +
-#      带导出功能」的过渡版让用户搬数据。用下面的环境变量打过渡版：
-#        MTD_PACKAGE / MTD_APK_PREFIX / MTD_APP_LABEL / MTD_PAGE_TITLE
-#        MTD_KEYSTORE_FILE / MTD_KEYSTORE_PASS / MTD_KEYSTORE_ALIAS
-#      过渡版必须用【旧 keystore】签名，否则系统拒绝覆盖安装
-#      （INSTALL_FAILED_UPDATE_INCOMPATIBLE），用户只能卸载重装 = 数据全丢。
+#   8. 默认打正式包（包名 com.mementide.app）。如需换包名 / 品牌，可用环境变量
+#      覆盖：MTD_PACKAGE / MTD_APK_PREFIX / MTD_APP_LABEL / MTD_PAGE_TITLE
+#      / MTD_KEYSTORE_FILE / MTD_KEYSTORE_PASS / MTD_KEYSTORE_ALIAS。
+#      注意：换包名 = 换应用身份，装到手机上是全新一个 App，旧包 localStorage
+#      数据带不过来；签名也必须保持一致才能覆盖安装。
 # ============================================================
 set -euo pipefail
 export MSYS_NO_PATHCONV=1
