@@ -16,6 +16,9 @@ build/apk/
 build/tmp/
 build/*.apk
 *.idsig
+build/__pycache__/
+build/_gh_release_update.py
+build/_do_release.py
 
 # ============================================
 # 系统 / 编辑器
