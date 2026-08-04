@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.timememo.app"
+    package="com.mementide.app"
     android:versionCode="1"
     android:versionName="1.0">
+    <!-- 注意：这里的 versionCode / versionName 只是占位值，实际版本号由
+         build_apk.sh 在打包时用 sed 注入 manifest 副本。原因：aapt2 link
+         的 version 参数只在属性缺失时注入，不会覆盖已有值，所以必须改写
+         文件本身，否则装到手机上永远显示 v1.0。
+         （注：XML 注释内不得出现连续两个减号，勿写成参数原型。） -->
 
     <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="34" />
 

@@ -1,4 +1,4 @@
-package com.timememo.app;
+package com.mementide.app;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -23,12 +23,12 @@ import android.widget.TextView;
 import java.lang.ref.WeakReference;
 
 /**
- * 「时光记忆 · TimeMemo」应用外壳：一个全屏 WebView，加载打包在 assets 中的本地页面。
+ * 「念汐 · Mementide」应用外壳：一个全屏 WebView，加载打包在 assets 中的本地页面。
  * 数据通过 localStorage 存在应用私有目录，全程不联网。
  */
 public class MainActivity extends Activity {
 
-    private static final String TAG = "TimeMemo";
+    private static final String TAG = "Mementide";
     private static final int COLOR_DARK = 0xFF0F1220;
     private static final int COLOR_LIGHT = 0xFFEEF1F8;
 
