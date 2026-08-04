@@ -33,7 +33,7 @@
 
 ## 下载安装
 
-直接下载仓库根目录的 [`时光记忆_v1.3.apk`](时光记忆_v1.3.apk)，传到手机后允许「安装未知来源应用」即可。
+直接下载安装包（GitHub Release）：[`时光记忆_v1.3.apk`](https://github.com/Reverigma/timememo-app/releases/download/v1.3/TimeMemo-v1.3.apk)，传到手机后允许「安装未知来源应用」即可。
 
 - 最低支持 Android 5.0（API 21）
 - 无需任何系统权限，`AndroidManifest.xml` 中未声明网络权限
@@ -81,7 +81,7 @@
 │   ├── build_apk.sh              # 一键构建脚本
 │   └── make_icons.py             # 纯 Python 生成图标（无第三方依赖）
 ├── index.original.backup.html    # 改造前的原始单页版本，留档
-└── 时光记忆_v1.2.apk              # 已签名安装包
+└── 时光记忆_v1.3.apk              # 已签名安装包（亦见 Releases）
 ```
 
 ---
