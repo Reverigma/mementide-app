@@ -30,6 +30,13 @@
 #   7. whoami 在加入域/工作组的机器上返回 "HOST\user"，直接拼进
 #      C:\Users\ 会得到 C:\Users\HOST\user\... 这种不存在的路径，
 #      aapt2.exe 报 "No such file or directory"。优先取 USERPROFILE。
+#   8. 换包名 = 换应用身份，装到手机上是全新一个 App，不是覆盖升级，
+#      旧包的 localStorage 数据带不过来。所以更名时要先出一版「旧包名 +
+#      带导出功能」的过渡版让用户搬数据。用下面的环境变量打过渡版：
+#        MTD_PACKAGE / MTD_APK_PREFIX / MTD_APP_LABEL / MTD_PAGE_TITLE
+#        MTD_KEYSTORE_FILE / MTD_KEYSTORE_PASS / MTD_KEYSTORE_ALIAS
+#      过渡版必须用【旧 keystore】签名，否则系统拒绝覆盖安装
+#      （INSTALL_FAILED_UPDATE_INCOMPATIBLE），用户只能卸载重装 = 数据全丢。
 # ============================================================
 set -euo pipefail
 export MSYS_NO_PATHCONV=1
@@ -59,6 +66,13 @@ WORK_POSIX="${MTD_WORK_POSIX:-/c/mtd_build}"
 KEYSTORE_PASS="${MTD_KEYSTORE_PASS:-mementide123}"
 KEYSTORE_ALIAS="${MTD_KEYSTORE_ALIAS:-mementide}"
 KEYSTORE_FILE="${MTD_KEYSTORE_FILE:-mementide.keystore}"
+
+# 品牌 / 包名。默认打正式包；打「旧包名过渡版」时用环境变量覆盖，见坑 #8。
+BASE_PACKAGE="com.mementide.app"
+APP_PACKAGE="${MTD_PACKAGE:-$BASE_PACKAGE}"
+APK_PREFIX="${MTD_APK_PREFIX:-Mementide}"
+APP_LABEL="${MTD_APP_LABEL:-}"      # 留空 = 沿用 strings.xml
+PAGE_TITLE="${MTD_PAGE_TITLE:-}"    # 留空 = 沿用 index.html
 # -----------------------------------------------------------
 
 BT="${SDK_WIN}\\build-tools\\34.0.0"
@@ -130,6 +144,29 @@ sed -i -E "s/android:versionCode=\"[^\"]*\"/android:versionCode=\"$VERSION_CODE\
 sed -i -E "s/android:versionName=\"[^\"]*\"/android:versionName=\"$VERSION_NAME\"/" "$MANIFEST_COPY"
 echo "    manifest 版本已注入: name=$VERSION_NAME code=$VERSION_CODE"
 
+# 包名 / 品牌改写（只作用于构建副本，源码不动），见坑 #8
+PKG_DIR_POSIX="${APP_PACKAGE//./\/}"
+PKG_DIR_WIN="${APP_PACKAGE//./\\}"
+if [ "$APP_PACKAGE" != "$BASE_PACKAGE" ]; then
+  echo "    切换包名: $BASE_PACKAGE -> $APP_PACKAGE"
+  sed -i -E "s/package=\"[^\"]*\"/package=\"$APP_PACKAGE\"/" "$MANIFEST_COPY"
+  mkdir -p "$WORK_POSIX/android/java/$PKG_DIR_POSIX"
+  mv "$WORK_POSIX/android/java/${BASE_PACKAGE//./\/}/MainActivity.java" \
+     "$WORK_POSIX/android/java/$PKG_DIR_POSIX/MainActivity.java"
+  sed -i "s/^package ${BASE_PACKAGE//./\\.};/package ${APP_PACKAGE};/" \
+     "$WORK_POSIX/android/java/$PKG_DIR_POSIX/MainActivity.java"
+fi
+if [ -n "$APP_LABEL" ]; then
+  echo "    覆盖桌面名称: $APP_LABEL"
+  sed -i -E "s|<string name=\"app_name\">[^<]*</string>|<string name=\"app_name\">${APP_LABEL}</string>|" \
+    "$WORK_POSIX/android/res/values/strings.xml"
+fi
+if [ -n "$PAGE_TITLE" ]; then
+  echo "    覆盖页面标题: $PAGE_TITLE"
+  sed -i -E "s|<title>[^<]*</title>|<title>${PAGE_TITLE}</title>|" "$WORK_POSIX/www/index.html"
+  sed -i -E "s|<h1>[^<]*</h1>|<h1>${PAGE_TITLE}</h1>|" "$WORK_POSIX/www/index.html"
+fi
+
 echo "==> [1/8] aapt2 compile"
 "$AAPT2" compile --dir "${WORK_WIN}\\android\\res" \
                  -o "${BUILD_WIN}\\res\\compiled.zip"
@@ -154,7 +191,7 @@ echo "==> [3/8] javac"
   -classpath "${PLATFORM}\\android.jar" \
   -d "${BUILD_WIN}\\classes" \
   -sourcepath "${WORK_WIN}\\android\\java" \
-  "${WORK_WIN}\\android\\java\\com\\mementide\\app\\MainActivity.java" 2>&1 | grep -av "^注:" || true
+  "${WORK_WIN}\\android\\java\\${PKG_DIR_WIN}\\MainActivity.java" 2>&1 | grep -av "^注:" || true
 
 CLASS_COUNT=$(find "$WORK_POSIX/build/classes" -name '*.class' | wc -l)
 echo "    编译出 ${CLASS_COUNT} 个 class 文件"
@@ -200,7 +237,7 @@ if [ ! -f "$WORK_POSIX/build/$KEYSTORE_FILE" ]; then
 fi
 
 echo "==> [8/8] apksigner 签名"
-APK_NAME="Mementide-v${VERSION_NAME}.apk"
+APK_NAME="${APK_PREFIX}-v${VERSION_NAME}.apk"
 "$APKSIGNER" sign \
   --ks "${BUILD_WIN}\\${KEYSTORE_FILE}" \
   --ks-pass "pass:${KEYSTORE_PASS}" \

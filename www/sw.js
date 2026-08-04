@@ -1,5 +1,6 @@
 // 仅用于浏览器 / PWA 场景的离线缓存；APK 内以 file:// 运行时不会注册
-const CACHE = 'mementide-v1';
+// 改动页面后务必递增版本号，否则 PWA 会一直吃旧缓存
+const CACHE = 'mementide-v2';
 const ASSETS = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {

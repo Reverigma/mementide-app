@@ -2,9 +2,15 @@ package com.mementide.app;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.ContentResolver;
+import android.content.ContentValues;
+import android.content.Intent;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -12,6 +18,7 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -20,6 +27,9 @@ import android.widget.FrameLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.lang.ref.WeakReference;
 
 /**
@@ -31,8 +41,11 @@ public class MainActivity extends Activity {
     private static final String TAG = "Mementide";
     private static final int COLOR_DARK = 0xFF0F1220;
     private static final int COLOR_LIGHT = 0xFFEEF1F8;
+    private static final int REQ_PICK_BACKUP = 1001;
 
     private WebView web;
+    /** 页面里 input[type=file] 的回调，等系统文件选择器返回后再回填 */
+    private ValueCallback<Uri[]> filePicker;
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     @Override
@@ -83,8 +96,30 @@ public class MainActivity extends Activity {
             }
         }
 
-        // 默认 WebChromeClient 才能让页面里的 alert / confirm 正常弹出
-        web.setWebChromeClient(new WebChromeClient());
+        // WebChromeClient 负责两件事：让页面的 alert / confirm 正常弹出，
+        // 以及把 input[type=file]（导入备份用）接到系统文件选择器上。
+        web.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback,
+                                             FileChooserParams params) {
+                if (filePicker != null) {
+                    filePicker.onReceiveValue(null);
+                }
+                filePicker = callback;
+                try {
+                    Intent intent = params.createIntent();
+                    // 备份是 .json，部分 ROM 的文件管理器对 application/json 过滤过严，放宽到全部类型
+                    intent.setType("*/*");
+                    startActivityForResult(Intent.createChooser(intent, "选择备份文件"),
+                            REQ_PICK_BACKUP);
+                    return true;
+                } catch (Throwable t) {
+                    Log.w(TAG, "open file chooser failed", t);
+                    filePicker = null;
+                    return false;
+                }
+            }
+        });
         web.setWebViewClient(new WebViewClient());
         web.addJavascriptInterface(new Bridge(this), "AndroidBridge");
 
@@ -143,6 +178,102 @@ public class MainActivity extends Activity {
                 }
             });
         }
+
+        /**
+         * 把备份 JSON 写到系统「下载」目录。返回 false 时页面会退回到「复制为文本」。
+         * 这个方法在 WebView 的 JS 线程上被调用，纯 IO 不碰 UI，无需切主线程。
+         */
+        @JavascriptInterface
+        public boolean saveBackup(String fileName, String content) {
+            MainActivity a = ref.get();
+            if (a == null || a.isFinishing()) return false;
+            return a.writeToDownloads(fileName, content);
+        }
+    }
+
+    /**
+     * 写入「下载」目录。
+     * API 29+ 走 MediaStore，不需要任何存储权限；更低版本回落到应用自己的外部目录。
+     * 全程不申请权限，保持「零权限」这条底线。
+     */
+    private boolean writeToDownloads(String fileName, String content) {
+        if (fileName == null || fileName.length() == 0) fileName = "backup.json";
+        byte[] bytes;
+        try {
+            bytes = (content == null ? "" : content).getBytes("UTF-8");
+        } catch (Throwable t) {
+            Log.w(TAG, "encode backup failed", t);
+            return false;
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            Uri uri = null;
+            ContentResolver cr = getContentResolver();
+            try {
+                ContentValues cv = new ContentValues();
+                cv.put(MediaStore.Downloads.DISPLAY_NAME, fileName);
+                cv.put(MediaStore.Downloads.MIME_TYPE, "application/json");
+                cv.put(MediaStore.Downloads.IS_PENDING, 1);
+                uri = cr.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
+                if (uri == null) return false;
+
+                OutputStream os = cr.openOutputStream(uri);
+                if (os == null) throw new IllegalStateException("openOutputStream returned null");
+                try {
+                    os.write(bytes);
+                    os.flush();
+                } finally {
+                    os.close();
+                }
+
+                cv.clear();
+                cv.put(MediaStore.Downloads.IS_PENDING, 0);
+                cr.update(uri, cv, null, null);
+                return true;
+            } catch (Throwable t) {
+                Log.w(TAG, "saveBackup via MediaStore failed", t);
+                // 半成品记录会一直挂着 IS_PENDING，清掉免得污染下载列表
+                if (uri != null) {
+                    try { cr.delete(uri, null, null); } catch (Throwable ignored) { }
+                }
+                return false;
+            }
+        }
+
+        try {
+            File dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+            if (dir == null) dir = getFilesDir();
+            if (!dir.exists() && !dir.mkdirs()) return false;
+            FileOutputStream fos = new FileOutputStream(new File(dir, fileName));
+            try {
+                fos.write(bytes);
+                fos.flush();
+            } finally {
+                fos.close();
+            }
+            return true;
+        } catch (Throwable t) {
+            Log.w(TAG, "saveBackup fallback failed", t);
+            return false;
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQ_PICK_BACKUP) {
+            if (filePicker != null) {
+                Uri[] result = null;
+                try {
+                    result = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
+                } catch (Throwable t) {
+                    Log.w(TAG, "parse file chooser result failed", t);
+                }
+                filePicker.onReceiveValue(result);
+                filePicker = null;
+            }
+            return;
+        }
+        super.onActivityResult(requestCode, resultCode, data);
     }
 
     private void applySystemBars(boolean dark) {
